@@ -1,9 +1,12 @@
-﻿(function()
+(function()
 {
 	// attach helper functions to Object
 	Object.equals = function(x, y, ignoreCase)
-    {
-		return (ignoreCase && typeof(x) == 'string' ? x.toLowerCase() == y.toLowerCase() : x === y); 
+	{
+		return (ignoreCase 
+				&& (typeof(x) == 'string' && typeof(y) == 'string') 
+						? x.toLowerCase() == y.toLowerCase() 
+							: x === y); 
 	}
 
 	Object.compare = function(x, y)
@@ -11,8 +14,8 @@
 		return x > y ? 1 : (x < y ? -1 : 0);
 	}
 
-    var Queryable = function(source)
-    {
+	var Queryable = function(source)
+	{
 		var self = this;
 
 		this.source = source;
@@ -20,7 +23,7 @@
 	
 		// call initialize
 		self._init();
-    };
+	};
 
 	Queryable.fromSource = function(source)
 	{
@@ -29,32 +32,7 @@
 
 	Queryable._utilities =
 	{
-		sort: function(input, method, ordered)
-		{
-			var x, y, holder;
-			var compare = method || function(a, b)
-			{
-				return Object.compare(a, b);
-			};
-
-			// the bubble sort method.
-			for(x = 0;x < input.length;x++)
-			{
-				for(y = 0;y < (input.length - 1);y++)
-				{
-					if(compare(input[y], input[y + 1]) == 1)
-					{
-						holder = input[y + 1];
-						input[y + 1] = input[y];
-						input[y] = holder;
-					}
-				}
-			}
-
-			return input;
-		}
-
-		,sortMany: function(input, methods, ordered)
+		sort: function(input, methods, ordered)
 		{
 			var x, y, holder;
 
@@ -80,6 +58,7 @@
 					{
 						if(compare(input[y], input[y + 1]) == 1)
 						{
+							console.log(input[y], input[y + 1]);
 							holder = input[y + 1];
 							input[y + 1] = input[y];
 							input[y] = holder;
@@ -140,12 +119,103 @@
 			}
 		}
 
+		// define queryable version
+		,queryableVersion: '1.0'
+
 		,toArray: function()
 		{
 			var output = [];
 			$.each(this.source, function()
 			{
 				output.push(this);
+			});
+
+			return output;
+		}
+
+		,toLookup: function(keySelector, elementSelector, comparer)
+		{
+			keySelector = Queryable._utilities.parseExpression(keySelector);
+			elementSelector = (elementSelector == null ? function(item, index) { return item; } : Queryable._utilities.parseExpression(elementSelector));
+			
+			var output = {};
+			var useComparer = (comparer != null);
+			var comparer = comparer || Object.equals;
+			var keys = [];
+
+			$.each(this.source, function(index, item)
+			{
+				var key = keySelector(item, index);
+				if(useComparer)
+				{
+					var existingKey = null;
+					$.each(keys, function(innerIndex, innerItem)
+					{
+						if(comparer(key, innerItem))
+						{
+							existingKey = innerItem;
+							return(false);
+						}
+					});
+
+					if(existingKey != null)
+						key = existingKey;
+					else
+						keys.push(key);
+				}
+				if(!(key in output))
+					output[key] = []
+				
+				output[key].push(elementSelector(item, index));
+			});
+
+			$.each(output, function(key, value)
+			{
+				output[key] = Queryable.fromSource(value);
+			});
+
+			return output;
+		}
+
+		,toDictionary: function(keySelector, elementSelector, comparer)
+		{
+			keySelector = Queryable._utilities.parseExpression(keySelector);
+			elementSelector = (elementSelector == null ? function(item, index) { return item; } : Queryable._utilities.parseExpression(elementSelector));
+
+			var noComparer = (comparer == null);
+			var output = {};
+			var keys = [];
+
+			$.each(this.source, function(index, item)
+			{
+				var key = keySelector(item, index);
+				if(noComparer)
+				{
+					if(key in output)
+						throw new Error('duplicate key found (' + key + ')');
+					else
+						output[key] = elementSelector(item, index);
+				}
+				else
+				{
+					var found = false;
+					$.each(keys, function(innerIndex, innerItem)
+					{
+						if(comparer(key, innerItem))
+						{
+							found = true;
+							return(false);
+						}
+					});
+
+					if(found)
+						throw new Error('duplicate key found (' + key + ')');
+					else
+					{
+						output[key] = elementSelector(item, index);
+						keys.push(key);
+					}
+				}
 			});
 
 			return output;
@@ -328,10 +398,28 @@
 
 		,concat: function(second)
 		{
+			var output = null;
 			if($.isArray(second))
-				return Queyrable.fromSource(this.source.concat(second));
+			{
+				output = this.source.concat(second);
+			}
+			else if(second instanceof Queryable)
+			{
+				output = this.source.concat(second.source);
+			}
+			else if(second.jquery != null)
+			{
+				output = this.source;
+
+				$.each(second, function()
+				{
+					output.push(this);
+				});
+			}
 			else
-				return Queryable.fromSource(this.source.concat(second.source)); // assuming it's a queryable
+				throw new Error('cannot merge with this type');
+
+			return Queryable.fromSource(output);
 		}
 
 		,defaultIfEmpty: function(defaultValue)
@@ -396,8 +484,8 @@
 
 			while(parent != null)
 			{
-				var internalComparer = parent[1]
-				var internalKeySelector = parent[2];
+				var internalComparer = parent.comparer;
+				var internalKeySelector = parent.keySelector;
 
 				var internal = function(x, y)
 				{
@@ -409,17 +497,9 @@
 			}
 
 			methods.push(method);
-
-			var sorted = null;
-			if(methods.length > 1)
-			{
-				sorted = Queryable._utilities.sortMany(this.source, methods);
-			}
-			else
-			{
-				sorted = Queryable._utilities.sort(this.source, method);
-			}
-			return OrderedQueryable.fromSource([this, comparer, keySelector], sorted);
+			
+			var sorted = Queryable._utilities.sort(this.source, methods);
+			return OrderedQueryable.fromSource({comparer: comparer, keySelector: keySelector}, sorted);
 
 		}
 
@@ -477,6 +557,31 @@
 			return output;
 		}
 
+		,average: function(selector)
+		{
+			var output = [];
+			selector = Queryable._utilities.parseExpression(selector);
+
+			$.each(this.source, function(index, item)
+			{
+				output.push(selector(item));
+			});
+
+			var sum = Queryable.fromSource(output).sum();
+			return sum / output.length;
+		}
+
+		,reverse: function()
+		{
+			var output = [];
+			$.each(this.source, function(index, item)
+			{
+				output.unshift(item);
+			});
+
+			return Queryable.fromSource(output);
+		}
+
 		,intersect: function(second, comparer)
 		{
 			var equals = comparer || function(a, b)
@@ -517,14 +622,20 @@
 			else if(arguments.length == 3)
 			{
 				elementSelector = arguments[1];
-				comparer = arguments[2];
+				comparer = arguments[2] || Object.equals;				
 			}
 			else if(arguments.length > 3)
 			{
 				elementSelector = arguments[1];
 				resultSelector = arguments[2];
-				comparer = arguments[3];
-			}
+				comparer = arguments[3] || Object.equals;
+			}			
+
+			if(elementSelector != null)
+				elementSelector = Queryable._utilities.parseExpression(elementSelector);
+
+			if(resultSelector != null)
+				resultSelector = Queryable._utilities.parseExpression(resultSelector);
 
 			if(keySelector == null)
 				throw new Error('keySelector is null');
@@ -612,6 +723,10 @@
 			var data = [];
 			var equals = (comparer || Object.equals);
 
+			outerKeySelector = Queryable._utilities.parseExpression(outerKeySelector);
+			innerKeySelector = Queryable._utilities.parseExpression(innerKeySelector);
+			resultSelector	 = Queryable._utilities.parseExpression(resultSelector);
+
 			$.each(this.source, function(index, item)
 			{
 				var key = outerKeySelector(item);
@@ -648,6 +763,8 @@
 
 		,select: function(selector)
 		{
+			selector = Queryable._utilities.parseExpression(selector);
+
 			var output = [];
 			$.each(this.source, function(index, item)
 			{
@@ -699,7 +816,7 @@
 			});
 
 			return Queryable.fromSource(output);
-		}
+		}		
 	}
 
 	// OrderedQueryable
@@ -741,7 +858,7 @@
 	Grouping.prototype = new Queryable();
 	Grouping.prototype.constructor = Grouping;
 
-    $.queryable = Queryable.fromSource;
+	$.queryable = Queryable.fromSource;
 	$.fn.asQueryable = function()
 	{
 		return Queryable.fromSource(this);
