@@ -1,4 +1,4 @@
 jquery.queryable
 ================
 
-jquery queryable plugin
+antother implementation of LINQ to objects for javascript, simple lightweight
