@@ -37,3 +37,8 @@ getting started
     {
         return item.category;
     });
+    
+    // or use string expressions
+    var result = $.queryable(data)
+                    .where('q => q.category == "category1"')
+                    .orderBy('q => q.price');
