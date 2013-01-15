@@ -12,8 +12,8 @@
 	Object.compare = function(x, y)
 	{
 		return x > y ? 1 : (x < y ? -1 : 0);
-	}
-
+	}	
+	
 	var Queryable = function(source)
 	{
 		var self = this;
@@ -24,7 +24,7 @@
 		// call initialize
 		self._init();
 	};
-
+	
 	Queryable.fromSource = function(source)
 	{
 		return new Queryable(source);
@@ -33,7 +33,7 @@
 	Queryable._utilities =
 	{
 		sort: function(input, methods, ordered)
-		{
+		{			
 			var x, y, holder;
 
 			// our compare methods is the last one
@@ -112,9 +112,9 @@
 
 			if(this.source != null)
 			{
-				$.each(this.source, function(index)
+				$.each(this.source, function(index, value)
 				{
-					self[index] = this;
+					self[index] = value;
 				});
 			}
 		}
@@ -240,6 +240,20 @@
 			return Queryable.fromSource(output);
 		}
 
+		,contains: function(value, comparer)
+		{
+			comparer = comparer || Object.equals;
+			
+			var exists = false;
+			$.each(this.source, function(index, item)
+			{
+				exists = (comparer(value, item));					
+				return(!exists); // break
+			});
+
+			return exists;
+		}
+
 		,count: function(predicate)
 		{
 			if(predicate != null)
@@ -345,6 +359,24 @@
 			
 				return (output.length > 0 ? output[output.length - 1] : null);
 			}
+		}
+
+		,single: function(predicate)
+		{
+			var output = this.singleOrDefault(predicate);
+			if(output == null)
+				throw new Error('sequence contains no matching element');
+			else
+				return output;
+		}
+
+		,singleOrDefault: function(predicate)
+		{
+			var output = this.where(predicate);
+			if(output.length > 1)
+				throw new Error('found more than 1 matching elements');
+			else
+				return output.firstOrDefault();
 		}
 
 		,elementAtOrDefault: function(index)
@@ -559,16 +591,35 @@
 
 		,average: function(selector)
 		{
-			var output = [];
-			selector = Queryable._utilities.parseExpression(selector);
+			selector = (selector == null ? function(item, index) { return item; } : Queryable._utilities.parseExpression(selector));
 
+			var sum = 0;
 			$.each(this.source, function(index, item)
 			{
-				output.push(selector(item));
+				sum += selector(item, index);
 			});
 
-			var sum = Queryable.fromSource(output).sum();
-			return sum / output.length;
+			return (sum / this.length);
+		}
+
+		,aggregate: function()
+		{
+			var seed = (arguments.length > 1 && typeof(arguments[0]) != 'function' ? arguments[0] : null);
+			var method = Queryable._utilities.parseExpression(arguments.length > 1 ? arguments[1] : arguments[0]);
+			var resultSelector = (arguments.length > 2 ? arguments[2] : 
+										(arguments.length == 2 && typeof(arguments[0]) == 'function' ? arguments[1] : null));			
+			resultSelector = (resultSelector == null ? function(item) { return item;} : Queryable._utilities.parseExpression(resultSelector));
+
+			console.log(method.toString());
+
+			var first = (seed == null ? this.source.shift() : seed);
+			var second = null;
+			while(second = this.source.shift())
+			{
+				first = method(first, second);
+			}
+
+			return resultSelector(first);
 		}
 
 		,reverse: function()
@@ -724,7 +775,7 @@
 			var equals = (comparer || Object.equals);
 
 			outerKeySelector = Queryable._utilities.parseExpression(outerKeySelector);
-			innerKeySelector = Queryable._utilities.parseExpression(innerKeySelector);
+			innerKeySelector = Queryable._utilities.parseExpression(innerKeySelector);			
 			resultSelector	 = Queryable._utilities.parseExpression(resultSelector);
 
 			$.each(this.source, function(index, item)
@@ -802,6 +853,50 @@
 			return Queryable.fromSource(output).distinct(comparer);
 		}
 
+		,except: function(second, comparer)
+		{
+			comparer = comparer || Object.equals;
+
+			var output = [];
+			$.each(this.source, function(index, item)
+			{
+				var exists = false;
+				$.each(second, function(secondIndex, secondItem)
+				{
+					exists = comparer(item, secondItem);
+					return (!exists);
+				});
+
+				if(!exists)
+					output.push(item);
+			});
+
+			return Queryable.fromSource(output);
+		}
+
+		,sequenceEqual: function(second, comparer)
+		{
+			comparer = (comparer || Object.equals);
+
+			var equal = (this.source.length == second.length);
+			
+			if(equal)
+			{
+				$.each(this.source, function(index, item)
+				{
+					var secondItem = second[index]
+					console.log(item, secondItem);
+					if(!comparer(item, secondItem))
+					{
+						equal = false;
+						return(false);
+					}
+				});
+			}
+
+			return equal;
+		}
+
 		,zip: function(second, resultSelector)
 		{
 			var len = Math.min(this.source.length, second.length);
@@ -858,7 +953,7 @@
 	Grouping.prototype = new Queryable();
 	Grouping.prototype.constructor = Grouping;
 
-	$.queryable = Queryable.fromSource;
+    $.queryable = Queryable.fromSource;
 	$.fn.asQueryable = function()
 	{
 		return Queryable.fromSource(this);
