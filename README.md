@@ -26,7 +26,7 @@ getting started
     // sort items by price
     var result = $.queryable(data).orderBy(function(item)
     {
-        return item.rice;
+        return item.price;
     });
     
     // sort items by price and then by category
