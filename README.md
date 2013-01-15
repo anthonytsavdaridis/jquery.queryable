@@ -24,7 +24,7 @@ getting started
     });
     
     // sort items by price
-    var result = $.queryable(data).orderBy(function(item_
+    var result = $.queryable(data).orderBy(function(item)
     {
         return item.rice;
     });
