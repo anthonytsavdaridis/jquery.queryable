@@ -42,3 +42,36 @@ getting started
     var result = $.queryable(data)
                     .where('q => q.category == "category1"')
                     .orderBy('q => q.price');
+
+using with jquery
+    
+    <input type="text" data-scope="calc" value="10" />
+    <input type="text" data-scope="calc" value="12" />
+    <input type="text" data-scope="name" value="text" />
+    
+    var sum = $('input[data-scope=calc]').asQueryable().sum(function(item) { return parseFloat(item.value); });
+    
+    // sum = 12
+    
+aggregates
+
+    var source = $.queryable([1, 2, 3, 4, 5, 6, 7, 8]);
+    
+    var min = source.min(); // returns 1
+    var max = source.max(); // returns 8
+    var sum = source.max(); // returns  36
+    var avg = source.average(); // returns 4.5
+    
+    // with objects
+    var source =
+        [
+            {id: 1, name: 'item 1', amount: 10}
+            ,{id: 2, name: 'item 2', amount: 20}
+            ,{id: 3, name: 'item 3', amount: 15}
+        ]
+    
+    var min = $.queryable(source).min(function(item) { return item.amount; }); // returns 10
+
+    // with an expression
+    var min = $.queryable(source).min('q => q.amount');
+    
