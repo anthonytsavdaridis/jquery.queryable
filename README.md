@@ -7,7 +7,12 @@ simple, lightweight implementation of LINQ to objects for javascript collections
 samples
 ----------------
 
-getting started
+1. [getting started](#start)
+2. [jquery](#jquery)
+3. [aggregates] (#aggregates)
+4. [join, groupJoin] (#joins)
+
+<a name="start">getting started</a>
 
     var data = 
     [
@@ -43,7 +48,7 @@ getting started
                     .where('q => q.category == "category1"')
                     .orderBy('q => q.price');
 
-using with jquery
+<a name="jquery">using with jquery</a>
     
     <input type="text" data-scope="calc" value="10" />
     <input type="text" data-scope="calc" value="12" />
@@ -53,7 +58,7 @@ using with jquery
     
     // sum = 12
     
-aggregates
+<a name="aggregates">aggregates</a>
 
     var source = $.queryable([1, 2, 3, 4, 5, 6, 7, 8]);
     
@@ -75,7 +80,7 @@ aggregates
     // with an expression
     var min = $.queryable(source).min('q => q.amount');
     
-join, groupJoin
+<a name="joins">join, groupJoin</a>
 
     var categories =
     	$.queryable(
