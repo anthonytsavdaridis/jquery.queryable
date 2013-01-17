@@ -75,3 +75,58 @@ aggregates
     // with an expression
     var min = $.queryable(source).min('q => q.amount');
     
+join, groupJoin
+
+    var categories =
+    	$.queryable(
+			[
+				{id: 1, name: 'category 1'}
+				,{id: 2, name: 'category 2'}
+				,{id: 3, name: 'category 3'}
+			]
+		);
+
+	var items =
+		$.queryable(
+			[
+				{id: 1, name: 'item 1', category: 1}
+				,{id: 2, name: 'item 2', category: 1}
+				,{id: 3, name: 'item 3', category: 3}
+				,{id: 4, name: 'item 4', category: 3}
+				,{id: 5, name: 'item 5', category: 3}
+			] 
+		);
+
+    // join: returns new Queryable of {category, item}
+    var result = categories.join(items
+        ,function(category) { return category.id; } // outer key
+        ,function(item) { return item.category; } // inner key
+        ,function(category, item)
+        {
+            return {category: category: item: item};
+        }); // result selector, return new object
+    
+    // join (same example using string expressions)
+    var result = categoires.join(items
+            ,'category => category.id'
+            ,'item => item.category'
+            ,function(category, item)
+            {
+                return {category: category: item: item};
+            });
+    
+    // groupJoin: returns new Queryable of Grouping
+    var result = categories.groupJoin(
+            'category => category.id'
+            ,'item => item.category'); 
+        
+     // groupJoin: returns new Queryable of string, modify result with resultSelector
+    var result = categories.groupJoin(
+            'category => category.id'
+            ,'item => item.category'
+            ,function(category, items)
+            {
+                return 'category ' + category.name + ' has ' + items.count() + ' items(s)';
+            });
+    
+    
