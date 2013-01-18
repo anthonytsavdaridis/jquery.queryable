@@ -10,8 +10,12 @@ samples
 1. [getting started](#start)
 2. [jquery](#jquery)
 3. [aggregates] (#aggregates)
-4. [join, groupJoin] (#joins)
-5. [groupBy] (#groupBy)
+4. [join, groupJoin] (#joins) *
+5. [groupBy] (#groupBy) *
+
+_*_ *complex types are not supported for keys in join, groupJoin, groupBy*
+
+-
 
 <a name="start">getting started</a>
 
