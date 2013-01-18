@@ -661,32 +661,15 @@
 			return Queryable.fromSource(output);
 		}
 
-		,groupBy: function(keySelector)
+		,groupBy: function(keySelector, elementSelector, resultSelector, comparer)
 		{
-			var elementSelector = null;
-			var resultSelector = null;
-			var comparer = null;
-			if(arguments.length == 2)
-			{
-				elementSelector = arguments[1];
-			}
-			else if(arguments.length == 3)
-			{
-				elementSelector = arguments[1];
-				comparer = arguments[2] || Object.equals;				
-			}
-			else if(arguments.length > 3)
-			{
-				elementSelector = arguments[1];
-				resultSelector = arguments[2];
-				comparer = arguments[3] || Object.equals;
-			}			
-
 			if(elementSelector != null)
-				elementSelector = Queryable._utilities.parseExpression(elementSelector);
+				elementSelector = Queryable._utilities.parseExpression(elementSelector);			
 
 			if(resultSelector != null)
 				resultSelector = Queryable._utilities.parseExpression(resultSelector);
+
+			comparer = comparer || Object.equals;
 
 			if(keySelector == null)
 				throw new Error('keySelector is null');
@@ -695,7 +678,7 @@
 				var dc = {};
 				var dataComparer = [];
 				var output = [];
-				var allowed = ['boolean', 'number', 'string'];
+				var allowed = ['boolean', 'number', 'string', 'undefined', 'null'];
 
 				keySelector = Queryable._utilities.parseExpression(keySelector);
 
@@ -953,7 +936,7 @@
 	Grouping.prototype = new Queryable();
 	Grouping.prototype.constructor = Grouping;
 
-    $.queryable = Queryable.fromSource;
+	$.queryable = Queryable.fromSource;
 	$.fn.asQueryable = function()
 	{
 		return Queryable.fromSource(this);
