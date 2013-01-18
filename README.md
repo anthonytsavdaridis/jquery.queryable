@@ -11,6 +11,7 @@ samples
 2. [jquery](#jquery)
 3. [aggregates] (#aggregates)
 4. [join, groupJoin] (#joins)
+5. [groupBy] (#groupBy)
 
 <a name="start">getting started</a>
 
@@ -134,4 +135,31 @@ samples
                 return 'category ' + category.name + ' has ' + items.count() + ' items(s)';
             });
     
-    
+<a name="groupBy">groupBy</a>
+
+	var items =
+		$.queryable(
+			[
+				{id: 1, name: 'item 1', category: 1}
+				,{id: 2, name: 'item 2', category: 1}
+				,{id: 3, name: 'item 3', category: 3}
+				,{id: 4, name: 'item 4', category: 3}
+				,{id: 5, name: 'item 5', category: 3}
+			] 
+		);
+
+	// simple, group by category: returns Queryable of Grouping
+	var result = items.groupBy('q => q.category') // group items by category
+
+	// use elementSelector
+	var result = items.groupBy(
+			'q => q.category'
+			,'q => {id: q.id, nameWithCategory: q.category + "_" + q.name}');
+
+	// use resultSelector
+	var result = items.groupBy(
+			'q => q.category'
+			,null // if elementSelector is null then a default function will be used function anonymous(x) { return x; }
+			,'(key, items) => key + " has " + items.count()' // modify output by using a result selector, this will return a Queryable of string {category} has {itemCount}
+			,null // comparer
+			);		
