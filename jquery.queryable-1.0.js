@@ -1,4 +1,4 @@
-/*! jquery.queryable v1.0 | (c) 2013 */
+/*! jquery.queryable v1.0 | https://github.com/anthonytsavdaridis/jquery.queryable | (c) 2013 */
 (function()
 {
 	// attach helper functions to Object
