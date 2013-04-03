@@ -1,4 +1,5 @@
 /*! jquery.queryable v1.0 | https://github.com/anthonytsavdaridis/jquery.queryable | (c) 2013 */
+
 (function()
 {
 	// attach helper functions to Object
@@ -59,7 +60,6 @@
 					{
 						if(compare(input[y], input[y + 1]) == 1)
 						{
-							console.log(input[y], input[y + 1]);
 							holder = input[y + 1];
 							input[y + 1] = input[y];
 							input[y] = holder;
@@ -73,21 +73,32 @@
 
 		,parseExpression: function(input)
         {
-			var method = input;
-			if($.type(method) == 'string')
+			var out = null;
+			if(input == null)
 			{
-				var pattern = /^[(\s]*([^()]*?)[)\s]*=>[{]?(.*)[}]?/;   
-				if(!pattern.test(input))
-					throw new Error('cannot parse expression');
-				else
+				// empty default anonymous
+				out = function(item, index){return item;}
+			}
+			else
+			{
+				var method = input;
+				if($.type(method) == 'string')
 				{
-					var parts = input.match(pattern);
-					var method = new Function(parts[1], "return " + parts[2] + ";");
-					return method;
+					var pattern = /^[(\s]*([^()]*?)[)\s]*=>[{]?(.*)[}]?/;   
+					if(!pattern.test(input))
+						throw new Error('cannot parse expression');
+					else
+					{
+						var parts = input.match(pattern);
+						var method = new Function(parts[1], "return " + parts[2] + ";");
+						return method;
+					}
 				}
+
+				out = method;
 			}
 
-			return method;
+			return out;
         }
 
 		,getKeys: function(value)
@@ -102,7 +113,16 @@
 			}
 			return keys;
 		}
+
+		,isComplexType: function(value)
+		{
+			var allowed = ['boolean', 'number', 'string', 'undefined', 'null'];
+			return $.inArray($.type, allowed) > -1;
+		}
 	}
+
+	// store
+	var qutil = Queryable._utilities;
 
 	Queryable.prototype =
 	{
@@ -126,9 +146,9 @@
 		,toArray: function()
 		{
 			var output = [];
-			$.each(this.source, function()
+			$.each(this.source, function(index, item)
 			{
-				output.push(this);
+				output.push(item);
 			});
 
 			return output;
@@ -581,6 +601,7 @@
 		,sum: function(selector)
 		{
 			var output = 0;
+			selector = (selector != null ? Queryable._utilities.parseExpression(selector) : null);
 			
 			$.each(this.source, function(index, item)
 			{
@@ -610,8 +631,6 @@
 			var resultSelector = (arguments.length > 2 ? arguments[2] : 
 										(arguments.length == 2 && typeof(arguments[0]) == 'function' ? arguments[1] : null));			
 			resultSelector = (resultSelector == null ? function(item) { return item;} : Queryable._utilities.parseExpression(resultSelector));
-
-			console.log(method.toString());
 
 			var first = (seed == null ? this.source.shift() : seed);
 			var second = null;
@@ -664,103 +683,176 @@
 
 		,groupBy: function(keySelector, elementSelector, resultSelector, comparer)
 		{
-			if(elementSelector != null)
-				elementSelector = Queryable._utilities.parseExpression(elementSelector);			
-
+			keySelector = qutil.parseExpression(keySelector);
+			elementSelector = qutil.parseExpression(elementSelector);
 			if(resultSelector != null)
-				resultSelector = Queryable._utilities.parseExpression(resultSelector);
+				resultSelector = qutil.parseExpression(resultSelector);
 
-			comparer = comparer || Object.equals;
+			// set default comparer
+			var eq = (comparer || Object.equals);
+			var output = [];
 
-			if(keySelector == null)
-				throw new Error('keySelector is null');
-			else
+			// output shoud be a list of
+			// key1, key2, keyN.. - items
+			$.each(this.source, function(index, item)
 			{
-				var dc = {};
-				var dataComparer = [];
-				var output = [];
-				var allowed = ['boolean', 'number', 'string', 'undefined', 'null'];
+				var key = keySelector(item);
+				var complex = qutil.isComplexType(key);
+				var entry = null;
 
-				keySelector = Queryable._utilities.parseExpression(keySelector);
-
-				// output shoud be a list of
-				// key1, key2, keyN.. - items
-				$.each(this.source, function(index, item)
+				$.each(output, function(index, item)
 				{
-					var key = keySelector(item);
-					var keyType = $.type(key);
-					if($.inArray(keyType, allowed) == -1)
-						throw new Error('complex types for keys are not allowed');
+					if(eq(item.key, key))
+						entry = item;
 
-					if(comparer == null)
-					{
-						if(!(key in dc))
-							dc[key] = [];
-					
-						dc[key].push((elementSelector != null ? elementSelector(item) : item));
-					}
-					else
-					{
-						var entry = null;
-
-						$.each(dataComparer, function(index, item)
-						{
-							if(comparer(item.key, key))
-								entry = item;
-
-							return (entry == null);
-						});
-
-						if(entry == null)
-						{
-							entry = {key: key, values: []};
-							dataComparer.push(entry);
-						}
-
-						entry.values.push((elementSelector != null ? elementSelector(item) : item));
-
-					}
+					return (entry == null);
 				});
 
-				if(comparer == null)
+				if(entry == null)
 				{
-					$.each(dc, function(key, value)
-					{
-						output.push(new Grouping(key, value));
-					});
-				}
-				else
-				{
-					$.each(dataComparer, function(index, item)
-					{
-						output.push(new Grouping(item.key, item.values));
-					});
+					entry = {key: key, values: []};					
+					output.push(entry);
 				}
 
+				entry.values.push(item);
+			});
+
+			if(resultSelector == null)
+			{
+				// transform
+				var tmp = [];
+				$.each(output, function(index, item)
+				{
+					// todo: improve performance for large arrays
+					tmp.push(new Grouping(item.key, item.values));
+				});
+
+				output = tmp;
+			}
+			else
+			{
+				// ok i'm done, let's check if we have a resultSelector
 				if(resultSelector != null)
 				{
 					var tmp = [];
-
 					$.each(output, function(index, item)
 					{
-						tmp.push(resultSelector(item.key, item));
+						tmp.push(resultSelector(item.key, Queryable.fromSource(item.values)));
 					});
 
 					output = tmp;
 				}
-
-				return Queryable.fromSource(output);
 			}
+
+			return Queryable.fromSource(output);
 		}
+
+		//,groupBy: function(keySelector, elementSelector, resultSelector, comparer)
+		//{
+		//	if(elementSelector != null)
+		//		elementSelector = Queryable._utilities.parseExpression(elementSelector);			
+
+		//	if(resultSelector != null)
+		//		resultSelector = Queryable._utilities.parseExpression(resultSelector);
+
+		//	comparer = comparer || Object.equals;
+
+		//	if(keySelector == null)
+		//		throw new Error('keySelector is null');
+		//	else
+		//	{
+		//		var dc = {};
+		//		var dataComparer = [];
+		//		var output = [];
+		//		var allowed = ['boolean', 'number', 'string', 'undefined', 'null'];
+
+		//		keySelector = Queryable._utilities.parseExpression(keySelector);
+
+		//		// output shoud be a list of
+		//		// key1, key2, keyN.. - items
+		//		$.each(this.source, function(index, item)
+		//		{
+		//			var key = keySelector(item);
+		//			var keyType = $.type(key);
+		//			if($.inArray(keyType, allowed) == -1)
+		//				throw new Error('complex types for keys are not allowed');
+
+		//			if(comparer == null)
+		//			{
+		//				if(!(key in dc))
+		//					dc[key] = [];
+					
+		//				dc[key].push((elementSelector != null ? elementSelector(item) : item));
+		//			}
+		//			else
+		//			{
+		//				var entry = null;
+
+		//				$.each(dataComparer, function(index, item)
+		//				{
+		//					if(comparer(item.key, key))
+		//						entry = item;
+
+		//					return (entry == null);
+		//				});
+
+		//				if(entry == null)
+		//				{
+		//					entry = {key: key, values: []};
+		//					dataComparer.push(entry);
+		//				}
+
+		//				entry.values.push((elementSelector != null ? elementSelector(item) : item));
+
+		//			}
+		//		});
+
+		//		if(comparer == null)
+		//		{
+		//			$.each(dc, function(key, value)
+		//			{
+		//				output.push(new Grouping(key, value));
+		//			});
+		//		}
+		//		else
+		//		{
+		//			$.each(dataComparer, function(index, item)
+		//			{
+		//				output.push(new Grouping(item.key, item.values));
+		//			});
+		//		}
+
+		//		if(resultSelector != null)
+		//		{
+		//			var tmp = [];
+
+		//			$.each(output, function(index, item)
+		//			{
+		//				tmp.push(resultSelector(item.key, item));
+		//			});
+
+		//			output = tmp;
+		//		}
+
+		//		return Queryable.fromSource(output);
+		//	}
+		//}
 
 		,_join: function(inner, outerKeySelector, innerKeySelector, resultSelector, comparer, groupJoin)
 		{
 			var data = [];
 			var equals = (comparer || Object.equals);
 
-			outerKeySelector = Queryable._utilities.parseExpression(outerKeySelector);
-			innerKeySelector = Queryable._utilities.parseExpression(innerKeySelector);			
-			resultSelector	 = Queryable._utilities.parseExpression(resultSelector);
+			outerKeySelector = qutil.parseExpression(outerKeySelector);
+			innerKeySelector = qutil.parseExpression(innerKeySelector);
+
+			if(resultSelector == null)
+				throw new Error('resultSelector must be specified');
+
+			resultSelector	 = qutil.parseExpression(resultSelector);
+
+			// check keys
+			var keyCheck = false;
 
 			$.each(this.source, function(index, item)
 			{
@@ -770,6 +862,14 @@
 				$.each(inner, function(subIndex, subItem)
 				{
 					var innerKey = innerKeySelector(subItem);
+					if(!keyCheck)
+					{
+						if($.type(key) != $.type(innerKey))
+							throw new Error('inner key type missmatch');
+
+						keyCheck = true;
+					}
+
 					if(equals(key, innerKey))
 					{
 						if(groupJoin)
@@ -868,8 +968,7 @@
 			{
 				$.each(this.source, function(index, item)
 				{
-					var secondItem = second[index]
-					console.log(item, secondItem);
+					var secondItem = second[index];
 					if(!comparer(item, secondItem))
 					{
 						equal = false;
@@ -938,6 +1037,7 @@
 	Grouping.prototype.constructor = Grouping;
 
 	$.queryable = Queryable.fromSource;
+	$.q = Queryable.fromSource;
 	$.fn.asQueryable = function()
 	{
 		return Queryable.fromSource(this);
