@@ -2,11 +2,12 @@
 
 (function(window)
 {
-	var _inArray = function(source, value)
+	// attach helper functions to Object
+	Array.contains = function(source, value)
 	{
 		var found = false;
 
-		_iterator(source, function(index, item)
+		Object.iterate(source, function(index, item)
 		{
 			found = (item == value);
 			return(!found);
@@ -15,12 +16,12 @@
 		return found;
 	}	
 
-	var _iterator = function(source, callback)
+	Object.iterate = function(source, callback)
 	{
 		var value = null;
 		var i = 0;
 		var length = source.length;
-		var isArray = (typeof(source) == 'array');
+		var isArray = Object.isArray(source);
 
 		if(isArray)
 		{
@@ -44,8 +45,23 @@
 			}
 		}
 	}	
+	
+	Object.getType = function(source)
+	{
+		var type = typeof(source);
+		if(type == 'object')
+		{
+			if(Object.prototype.toString.call(source) === '[object Array]')
+				type = 'array';
+		}
+		return type;
+	}	
 
-	// attach helper functions to Object
+	Object.isArray = function(source)
+	{
+		return Object.getType(source) == 'array';
+	}
+
 	Object.equals = function(x, y, ignoreCase)
 	{
 		return (ignoreCase 
@@ -59,6 +75,7 @@
 		return x > y ? 1 : (x < y ? -1 : 0);
 	}	
 	
+	// Queryable
 	var Queryable = function(source)
 	{
 		var self = this;
@@ -90,7 +107,7 @@
 				for(y = 0;y < (input.length - 1);y++)
 				{
 					var equal = true;
-					_iterator(methods, function(index, method)
+					Object.iterate(methods, function(index, method)
 					{
 						if(method(input[y], input[y + 1]) != 0)
 						{
@@ -125,7 +142,7 @@
 			else
 			{
 				var method = input;
-				if(typeof(method) == 'string')
+				if(Object.getType(method) == 'string')
 				{
 					var pattern = /^[(\s]*([^()]*?)[)\s]*=>[{]?(.*)[}]?/;   
 					if(!pattern.test(input))
@@ -160,7 +177,7 @@
 		,isComplexType: function(value)
 		{
 			var allowed = ['boolean', 'number', 'string', 'undefined', 'null'];
-			return _inArray(allowed, value);
+			return Array.contains(allowed, value);
 		}
 	}
 
@@ -176,7 +193,7 @@
 
 			if(this.source != null)
 			{
-				_iterator(this.source, function(index, value)
+				Object.iterate(this.source, function(index, value)
 				{
 					self[index] = value;
 				});
@@ -189,7 +206,7 @@
 		,toArray: function()
 		{
 			var output = [];
-			_iterator(this.source, function(index, item)
+			Object.iterate(this.source, function(index, item)
 			{
 				output.push(item);
 			});
@@ -207,13 +224,13 @@
 			var comparer = comparer || Object.equals;
 			var keys = [];
 
-			_iterator(this.source, function(index, item)
+			Object.iterate(this.source, function(index, item)
 			{
 				var key = keySelector(item, index);
 				if(useComparer)
 				{
 					var existingKey = null;
-					_iterator(keys, function(innerIndex, innerItem)
+					Object.iterate(keys, function(innerIndex, innerItem)
 					{
 						if(comparer(key, innerItem))
 						{
@@ -233,7 +250,7 @@
 				output[key].push(elementSelector(item, index));
 			});
 
-			_iterator(output, function(key, value)
+			Object.iterate(output, function(key, value)
 			{
 				output[key] = Queryable.fromSource(value);
 			});
@@ -250,7 +267,7 @@
 			var output = {};
 			var keys = [];
 
-			_iterator(this.source, function(index, item)
+			Object.iterate(this.source, function(index, item)
 			{
 				var key = keySelector(item, index);
 				if(noComparer)
@@ -263,7 +280,7 @@
 				else
 				{
 					var found = false;
-					_iterator(keys, function(innerIndex, innerItem)
+					Object.iterate(keys, function(innerIndex, innerItem)
 					{
 						if(comparer(key, innerItem))
 						{
@@ -295,7 +312,7 @@
 			var method = Queryable._utilities.parseExpression(predicate);
 
 			var output = [];
-			_iterator(this.source, function(index, item)
+			Object.iterate(this.source, function(index, item)
 			{
 				if(method(item, index))
 					output.push(item);
@@ -309,7 +326,7 @@
 			comparer = comparer || Object.equals;
 			
 			var exists = false;
-			_iterator(this.source, function(index, item)
+			Object.iterate(this.source, function(index, item)
 			{
 				exists = (comparer(value, item));					
 				return(!exists); // break
@@ -328,7 +345,7 @@
 
 		,forEach: function(action)
 		{
-			_iterator(this.source, function(index, item)
+			Object.iterate(this.source, function(index, item)
 			{
 				action(item, index);
 			});
@@ -345,7 +362,7 @@
 			var method = Queryable._utilities.parseExpression(predicate);
 			var output = [];
 
-			_iterator(this.source, function(index, item)
+			Object.iterate(this.source, function(index, item)
 			{
 				if(method(item, index))
 					output.push(item);
@@ -362,7 +379,7 @@
 			var output = null;
 			var startIndex = null;
 
-			_iterator(this.source, function(index, item)
+			Object.iterate(this.source, function(index, item)
 			{
 				if(!method(item, index))
 					return(false);
@@ -462,7 +479,7 @@
 			var method = Queryable._utilities.parseExpression(predicate);
 			var output = true;
 
-			_iterator(this.source, function(index, item)
+			Object.iterate(this.source, function(index, item)
 			{
 				if(!method(item, index))
 				{
@@ -480,7 +497,7 @@
 			var method = Queryable._utilities.parseExpression(predicate);
 			var output = false;
 
-			_iterator(this.source, function(index, item)
+			Object.iterate(this.source, function(index, item)
 			{
 				if(method(item, index))
 				{
@@ -495,7 +512,7 @@
 		,concat: function(second)
 		{
 			var output = null;
-			if(typeof(second) == 'array')
+			if(Object.isArray(second))
 			{
 				output = this.source.concat(second);
 			}
@@ -507,7 +524,7 @@
 			{
 				output = this.source;
 
-				_iterator(second, function()
+				Object.iterate(second, function()
 				{
 					output.push(this);
 				});
@@ -533,10 +550,10 @@
 			var output = [];
 			if(comparer == null)
 			{
-				_iterator(this.source, function(index, item)
+				Object.iterate(this.source, function(index, item)
 				{
 					//if($.inArray(item, output) == -1)
-					if(!_inArray(output, item))
+					if(!Array.contains(output, item))
 						output.push(item);
 				});
 			}
@@ -544,10 +561,10 @@
 			{
 				var compare = comparer || Object.equals;
 
-				_iterator(this.source, function(index, item)
+				Object.iterate(this.source, function(index, item)
 				{
 					var found = false;
-					_iterator(output, function()
+					Object.iterate(output, function()
 					{
 						if(compare(item, this))
 						{
@@ -647,7 +664,7 @@
 			var output = 0;
 			selector = (selector != null ? Queryable._utilities.parseExpression(selector) : null);
 			
-			_iterator(this.source, function(index, item)
+			Object.iterate(this.source, function(index, item)
 			{
 				output += (selector != null ? selector(item, index) : item);
 			});
@@ -660,7 +677,7 @@
 			selector = (selector == null ? function(item, index) { return item; } : Queryable._utilities.parseExpression(selector));
 
 			var sum = 0;
-			_iterator(this.source, function(index, item)
+			Object.iterate(this.source, function(index, item)
 			{
 				sum += selector(item, index);
 			});
@@ -689,7 +706,7 @@
 		,reverse: function()
 		{
 			var output = [];
-			_iterator(this.source, function(index, item)
+			Object.iterate(this.source, function(index, item)
 			{
 				output.unshift(item);
 			});
@@ -705,11 +722,11 @@
 			};
 
 			var output = [];
-			_iterator(this.source, function(index, item)
+			Object.iterate(this.source, function(index, item)
 			{
 				// check if item exists in second
 				var found = false;
-				_iterator(second, function(index2, item2)
+				Object.iterate(second, function(index2, item2)
 				{
 					if(equals(item, item2))
 					{
@@ -738,13 +755,13 @@
 
 			// output shoud be a list of
 			// key1, key2, keyN.. - items
-			_iterator(this.source, function(index, item)
+			Object.iterate(this.source, function(index, item)
 			{
 				var key = keySelector(item);
 				var complex = qutil.isComplexType(key);
 				var entry = null;
 
-				_iterator(output, function(index, item)
+				Object.iterate(output, function(index, item)
 				{
 					if(eq(item.key, key))
 						entry = item;
@@ -765,7 +782,7 @@
 			{
 				// transform
 				var tmp = [];
-				_iterator(output, function(index, item)
+				Object.iterate(output, function(index, item)
 				{
 					// todo: improve performance for large arrays
 					tmp.push(new Grouping(item.key, item.values));
@@ -779,7 +796,7 @@
 				if(resultSelector != null)
 				{
 					var tmp = [];
-					_iterator(output, function(index, item)
+					Object.iterate(output, function(index, item)
 					{
 						tmp.push(resultSelector(item.key, Queryable.fromSource(item.values)));
 					});
@@ -807,18 +824,18 @@
 			// check keys
 			var keyCheck = false;
 
-			_iterator(this.source, function(index, item)
+			Object.iterate(this.source, function(index, item)
 			{
 				var key = outerKeySelector(item);
 				var subset = [];
 
-				_iterator(inner, function(subIndex, subItem)
+				Object.iterate(inner, function(subIndex, subItem)
 				{
 					var innerKey = innerKeySelector(subItem);
 					if(!keyCheck)
 					{
 						//if($.type(key) != $.type(innerKey))
-						if(typeof(key) != typeof(innerKey))
+						if(Object.getType(key) != Object.getType(innerKey))
 							throw new Error('inner key type missmatch');
 
 						keyCheck = true;
@@ -855,7 +872,7 @@
 			selector = Queryable._utilities.parseExpression(selector);
 
 			var output = [];
-			_iterator(this.source, function(index, item)
+			Object.iterate(this.source, function(index, item)
 			{
 				output.push(selector(item));
 			});
@@ -868,14 +885,14 @@
 			var resultSelector = (arguments.length > 1 ? arguments[1] : null);
 			var output = [];
 
-			_iterator(this.source, function(index, item)
+			Object.iterate(this.source, function(index, item)
 			{
 				if(resultSelector == null)
 					output = output.concat(collectionSelector(item, index));
 				else
 				{
 					var subset = collectionSelector(item, index);
-					_iterator(subset, function(subIndex, subItem)
+					Object.iterate(subset, function(subIndex, subItem)
 					{
 						output.push(resultSelector(item, subItem, subIndex));
 					});
@@ -896,10 +913,10 @@
 			comparer = comparer || Object.equals;
 
 			var output = [];
-			_iterator(this.source, function(index, item)
+			Object.iterate(this.source, function(index, item)
 			{
 				var exists = false;
-				_iterator(second, function(secondIndex, secondItem)
+				Object.iterate(second, function(secondIndex, secondItem)
 				{
 					exists = comparer(item, secondItem);
 					return (!exists);
@@ -920,7 +937,7 @@
 			
 			if(equal)
 			{
-				_iterator(this.source, function(index, item)
+				Object.iterate(this.source, function(index, item)
 				{
 					var secondItem = second[index];
 					if(!comparer(item, secondItem))
@@ -939,7 +956,7 @@
 			var len = Math.min(this.source.length, second.length);
 			var output = [];
 
-			_iterator(this.source, function(index, item)
+			Object.iterate(this.source, function(index, item)
 			{
 				if(index + 1 > len)
 					return(false);
@@ -996,7 +1013,6 @@
 	Grouping.prototype = new Queryable();
 	Grouping.prototype.constructor = Grouping;
 
-	//_queryable = Queryable.fromSource;
-	//_q = Queryable.fromSource;
+	// attach	
 	window.Queryable = Queryable;
 })(window);
