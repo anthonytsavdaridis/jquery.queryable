@@ -87,6 +87,7 @@
 		self._init();
 	};
 	
+	// static
 	Queryable.fromSource = function(source)
 	{
 		return new Queryable(source);
