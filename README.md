@@ -1,4 +1,4 @@
-jquery.queryable
+queryable
 ================
 
 simple, lightweight implementation of LINQ to objects for javascript collections (arrays/objects/jquery)
