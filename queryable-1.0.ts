@@ -30,6 +30,11 @@ class Queryable<T>
     {
         return this.source.length;
     }
+
+    count()
+    {
+        return this.size();
+    }
 }
 
 var p = Queryable.fromSource([1, 2, 3, 4]);
