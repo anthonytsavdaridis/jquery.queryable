@@ -35,6 +35,11 @@ class Queryable<T>
     {
         return this.size();
     }
+
+    any()
+    {
+        return null;
+    }
 }
 
 var p = Queryable.fromSource([1, 2, 3, 4]);
