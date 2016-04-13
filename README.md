@@ -72,7 +72,7 @@ var source = $.queryable([1, 2, 3, 4, 5, 6, 7, 8]);
 
 var min = source.min(); // returns 1
 var max = source.max(); // returns 8
-var sum = source.max(); // returns  36
+var sum = source.sum(); // returns  36
 var avg = source.average(); // returns 4.5
     
     // with objects
